@@ -1,9 +1,7 @@
 from OpenGL import GL
-import numpy as np
 from .buffer import IndexBuffer
 from .buffer_pointer import BufferPointer
 from ..object import ManagedObject, BindableObject
-from .. import dtypes
 
 class VertexArray(BindableObject, ManagedObject):
     _create_func = GL.glGenVertexArrays

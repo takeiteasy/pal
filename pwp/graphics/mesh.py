@@ -3,7 +3,6 @@ from .object import DescriptorMixin
 from .buffer.vertex_array import VertexArray
 from .buffer.buffer_pointer import BufferPointer
 
-
 class Mesh(DescriptorMixin):
     def __init__(self, pipeline, indices=None, primitive=GL.GL_TRIANGLES, **pointers):
         self._pointers = pointers
