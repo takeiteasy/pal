@@ -8,8 +8,8 @@ class ParentNode:
     def add_child(self, node: NodeType):
         self.children.append(node)
 
-    def add_children(self, nodes: [NodeType]):
-        for node in nodes:
+    def add_children(self, nodes: NodeType | list[NodeType]):
+        for node in nodes if isinstance(nodes, list) else [nodes]:
             self.add_child(node)
 
     def get_children(self, name: Optional[str] = ""):

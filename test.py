@@ -8,7 +8,7 @@ class TestScene(pwp.Scene):
 
     @override
     def event(self, e):
-        pass
+        print(e)
 
     @override
     def step(self, delta):
@@ -19,6 +19,6 @@ with pwp.quick_window() as wnd:
     scn.enter()
     for dt in wnd.loop():
         for e in wnd.events():
-            pass
+            scn.event(e)
         scn.step(dt)
         scn.draw()

@@ -6,7 +6,7 @@ from quickwindow import Window, get_quick_window
 
 class Scene(ParentNode):
     def __init__(self, window: Window = None):
-        super().__init__()
+        ParentNode.__init__(self)
         self._wnd = window if window else get_quick_window()
         if not self._wnd:
             raise RuntimeError("No window context for Scene")
@@ -19,7 +19,7 @@ class Scene(ParentNode):
     @contextmanager
     def with_projection(self, matrix: Matrix44):
         tmp = self.projection
-        self.projection = Matrix44.orthogonal_projection(0, self._width, 0, self._height, -1.0, 1.0)
+        self.projection = matrix
         yield
         self.projection = tmp
 
@@ -32,6 +32,13 @@ class Scene(ParentNode):
     def projection3d(self, fov: float = 45.0, near: float = 0.1, far: float = 1000.0):
         with self.with_projection(Matrix44.perspective_projection(fov, float(self._width) / float(self._height), near, far)):
             yield
+
+    @contextmanager
+    def with_view(self, matrix: Matrix44):
+        tmp = self.view
+        self.view = matrix
+        yield
+        self.view = tmp
 
     @property
     def width(self):
