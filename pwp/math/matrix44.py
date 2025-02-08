@@ -1,527 +1,308 @@
 # -*- coding: utf-8 -*-
-"""4x4 Matrix which supports rotation, translation, scale and skew.
+"""Represents a 4x4 Matrix.
 
-Matrices are laid out in row-major format and can be loaded directly
-into OpenGL.
-To convert to column-major format, transpose the array using the
-numpy.array.T method.
+The Matrix44 class provides a number of convenient functions and
+conversions.
+::
+
+    import numpy as np
+    from pyrr import Quaternion, Matrix33, Matrix44, Vector4
+
+    m = Matrix44()
+    m = Matrix44([[1.,0.,0.,0.],[0.,1.,0.,0.],[0.,0.,1.,0.],[0.,0.,0.,1.]])
+
+    # copy constructor
+    m = Matrix44(Matrix44())
+
+    # explicit creation
+    m = Matrix44.identity()
+    m = Matrix44.from_matrix44(Matrix44())
+
+    # inferred conversions
+    m = Matrix44(Quaternion())
+    m = Matrix44(Matrix33())
+
+    # multiply matricies together
+    m = Matrix44() * Matrix44()
+
+    # extract a quaternion from a matrix
+    q = m.quaternion
+
+    # convert from quaternion back to matrix
+    m = q.matrix44
+    m = Matrix44(q)
+
+    # rotate a matrix by a quaternion
+    m = Matrix44.identity() * Quaternion()
+
+    # rotate a vector 4 by a matrix
+    v = Matrix44.from_x_rotation(np.pi) * Vector4([1.,2.,3.,1.])
+
+    # undo a rotation
+    m = Matrix44.from_x_rotation(np.pi)
+    v = m * Vector4([1.,1.,1.,1.])
+    # ~m is the same as m.inverse
+    v = ~m * v
+
+    # access specific parts of the matrix
+    # first row
+    m1 = m.m1
+    # first element, first row
+    m11 = m.m11
+    # fourth element, fourth row
+    m44 = m.m44
+    # first row, same as m1
+    r1 = m.r1
+    # first column
+    c1 = m.c1
 """
+from numbers import Number
 import numpy as np
-from . import matrix33
-from . import vector
-from . import vector3
-from . import quaternion
-from .utils import all_parameters_as_numpy_arrays, parameters_as_numpy_arrays
+from multipledispatch import dispatch
+from .base import BaseObject, BaseMatrix, BaseMatrix44, BaseQuaternion, BaseVector, NpProxy
+from .modules import matrix44
 
+class Matrix44(BaseMatrix44):
+    _module = matrix44
+    _shape = (4,4,)
 
-def create_identity(dtype=None):
-    """Creates a new matrix44 and sets it to
-    an identity matrix.
+    # m<c> style access
+    #: The first row of this Matrix as a numpy.ndarray.
+    m1 = NpProxy(0)
+    #: The second row of this Matrix as a numpy.ndarray.
+    m2 = NpProxy(1)
+    #: The third row of this Matrix as a numpy.ndarray.
+    m3 = NpProxy(2)
+    #: The fourth row of this Matrix as a numpy.ndarray.
+    m4 = NpProxy(3)
 
-    :rtype: numpy.array
-    :return: A matrix representing an identity matrix with shape (4,4).
-    """
-    return np.identity(4, dtype=dtype)
+    # m<r><c> access
+    #: The [0,0] value of this Matrix.
+    m11 = NpProxy((0,0))
+    #: The [0,1] value of this Matrix.
+    m12 = NpProxy((0,1))
+    #: The [0,2] value of this Matrix.
+    m13 = NpProxy((0,2))
+    #: The [0,3] value of this Matrix.
+    m14 = NpProxy((0,3))
+    #: The [1,0] value of this Matrix.
+    m21 = NpProxy((1,0))
+    #: The [1,1] value of this Matrix.
+    m22 = NpProxy((1,1))
+    #: The [1,2] value of this Matrix.
+    m23 = NpProxy((1,2))
+    #: The [1,3] value of this Matrix.
+    m24 = NpProxy((1,3))
+    #: The [2,0] value of this Matrix.
+    m31 = NpProxy((2,0))
+    #: The [2,1] value of this Matrix.
+    m32 = NpProxy((2,1))
+    #: The [2,2] value of this Matrix.
+    m33 = NpProxy((2,2))
+    #: The [2,3] value of this Matrix.
+    m34 = NpProxy((2,3))
+    #: The [3,0] value of this Matrix.
+    m41 = NpProxy((3,0))
+    #: The [3,1] value of this Matrix.
+    m42 = NpProxy((3,1))
+    #: The [3,2] value of this Matrix.
+    m43 = NpProxy((3,2))
+    #: The [3,3] value of this Matrix.
+    m44 = NpProxy((3,3))
 
-def create_from_matrix33(mat, dtype=None):
-    """Creates a Matrix44 from a Matrix33.
+    # rows
+    #: The first row of this Matrix as a numpy.ndarray. This is the same as m1.
+    r1 = NpProxy(0)
+    #: The second row of this Matrix as a numpy.ndarray. This is the same as m2.
+    r2 = NpProxy(1)
+    #: The third row of this Matrix as a numpy.ndarray. This is the same as m3.
+    r3 = NpProxy(2)
+    #: The fourth row of this Matrix as a numpy.ndarray. This is the same as m4.
+    r4 = NpProxy(3)
 
-    The translation will be 0,0,0.
+    # columns
+    #: The first column of this Matrix as a numpy.ndarray.
+    c1 = NpProxy((slice(0,4),0))
+    #: The second column of this Matrix as a numpy.ndarray.
+    c2 = NpProxy((slice(0,4),1))
+    #: The third column of this Matrix as a numpy.ndarray.
+    c3 = NpProxy((slice(0,4),2))
+    #: The fourth column of this Matrix as a numpy.ndarray.
+    c4 = NpProxy((slice(0,4),3))
 
-    :rtype: numpy.array
-    :return: A matrix with shape (4,4) with the input matrix rotation.
-    """
-    mat4 = np.identity(4, dtype=dtype)
-    mat4[0:3, 0:3] = mat
-    return mat4
+    ########################
+    # Creation
+    @classmethod
+    def from_matrix33(cls, matrix, dtype=None):
+        """Creates a Matrix44 from a Matrix33.
+        """
+        return cls(matrix44.create_from_matrix33(matrix, dtype))
 
-def create_matrix33_view(mat):
-    """Returns a view into the matrix in Matrix33 format.
+    @classmethod
+    def perspective_projection(cls, fovy, aspect, near, far, dtype=None):
+        """Creates a Matrix44 for use as a perspective projection matrix.
+        """
+        return cls(matrix44.create_perspective_projection(fovy, aspect, near, far, dtype))
 
-    This is different from matrix33.create_from_matrix44, in that
-    changes to the returned matrix will also alter the original matrix.
+    @classmethod
+    def perspective_projection_bounds(cls, left, right, top, bottom, near, far, dtype=None):
+        """Creates a Matrix44 for use as a perspective projection matrix.
+        """
+        return cls(matrix44.create_perspective_projection_from_bounds(left, right, top, bottom, near, far, dtype))
 
-    :rtype: numpy.array
-    :return: A view into the matrix in the format of a matrix33 (shape (3,3)).
-    """
-    return mat[0:3, 0:3]
+    @classmethod
+    def orthogonal_projection(cls, left, right, top, bottom, near, far, dtype=None):
+        """Creates a Matrix44 for use as an orthogonal projection matrix.
+        """
+        return cls(matrix44.create_orthogonal_projection(left, right, top, bottom, near, far, dtype))
 
-@parameters_as_numpy_arrays('eulers')
-def create_from_eulers(eulers, dtype=None):
-    """Creates a matrix from the specified Euler rotations.
+    @classmethod
+    def look_at(cls, eye, target, up, dtype=None):
+        """Creates a Matrix44 for use as a lookAt matrix.
+        """
+        return cls(matrix44.create_look_at(eye, target, up, dtype))
 
-    :param numpy.array eulers: A set of euler rotations in the format
-        specified by the euler modules.
-    :rtype: numpy.array
-    :return: A matrix with shape (4,4) with the euler's rotation.
-    """
-    dtype = dtype or eulers.dtype
-    # set to identity matrix
-    # this will populate our extra rows for us
-    mat = create_identity(dtype)
+    @classmethod
+    def from_translation(cls, translation, dtype=None):
+        """Creates a Matrix44 from the specified translation.
+        """
+        return cls(matrix44.create_from_translation(translation, dtype=dtype))
 
-    # we'll use Matrix33 for our conversion
-    mat[0:3, 0:3] = matrix33.create_from_eulers(eulers, dtype)
-    return mat
+    def __new__(cls, value=None, dtype=None):
+        if value is not None:
+            obj = value
+            if not isinstance(value, np.ndarray):
+                obj = np.array(value, dtype=dtype)
 
-@parameters_as_numpy_arrays('axis')
-def create_from_axis_rotation(axis, theta, dtype=None):
-    """Creates a matrix from the specified rotation theta around an axis.
-
-    :param numpy.array axis: A (3,) vector.
-    :param float theta: A rotation in radians.
-
-    :rtype: numpy.array
-    :return: A matrix with shape (4,4).
-    """
-    dtype = dtype or axis.dtype
-    # set to identity matrix
-    # this will populate our extra rows for us
-    mat = create_identity(dtype)
-
-    # we'll use Matrix33 for our conversion
-    mat[0:3, 0:3] = matrix33.create_from_axis_rotation(axis, theta, dtype)
-    return mat
-
-@parameters_as_numpy_arrays('quat')
-def create_from_quaternion(quat, dtype=None):
-    """Creates a matrix with the same rotation as a quaternion.
-
-    :param quat: The quaternion to create the matrix from.
-    :rtype: numpy.array
-    :return: A matrix with shape (4,4) with the quaternion's rotation.
-    """
-    dtype = dtype or quat.dtype
-    # set to identity matrix
-    # this will populate our extra rows for us
-    mat = create_identity(dtype)
-
-    # we'll use Matrix33 for our conversion
-    mat[0:3, 0:3] = matrix33.create_from_quaternion(quat, dtype)
-    return mat
-
-@parameters_as_numpy_arrays('quat')
-def create_from_inverse_of_quaternion(quat, dtype=None):
-    """Creates a matrix with the inverse rotation of a quaternion.
-
-    This can be used to go from object space to inertial space.
-
-    :param numpy.array quat: The quaternion to make the matrix from (shape 4).
-    :rtype: numpy.array
-    :return: A matrix with shape (4,4) that respresents the inverse of
-        the quaternion.
-    """
-    dtype = dtype or quat.dtype
-    # set to identity matrix
-    # this will populate our extra rows for us
-    mat = create_identity(dtype)
-
-    # we'll use Matrix33 for our conversion
-    mat[0:3, 0:3] = matrix33.create_from_inverse_of_quaternion(quat, dtype)
-    return mat
-
-@parameters_as_numpy_arrays('vec')
-def create_from_translation(vec, dtype=None):
-    """Creates an identity matrix with the translation set.
-
-    :param numpy.array vec: The translation vector (shape 3 or 4).
-    :rtype: numpy.array
-    :return: A matrix with shape (4,4) that represents a matrix
-        with the translation set to the specified vector.
-    """
-    dtype = dtype or vec.dtype
-    mat = create_identity(dtype)
-    mat[3, 0:3] = vec[:3]
-    return mat
-
-def create_from_scale(scale, dtype=None):
-    """Creates an identity matrix with the scale set.
-
-    :param numpy.array scale: The scale to apply as a vector (shape 3).
-    :rtype: numpy.array
-    :return: A matrix with shape (4,4) with the scale
-        set to the specified vector.
-    """
-    # we need to expand 'scale' into it's components
-    # because numpy isn't flattening them properly.
-    m = np.diagflat([scale[0], scale[1], scale[2], 1.0])
-    if dtype:
-        m = m.astype(dtype)
-    return m
-
-def create_from_x_rotation(theta, dtype=None):
-    """Creates a matrix with the specified rotation about the X axis.
-
-    :param float theta: The rotation, in radians, about the X-axis.
-    :rtype: numpy.array
-    :return: A matrix with the shape (4,4) with the specified rotation about
-        the X-axis.
-
-    .. seealso:: http://en.wikipedia.org/wiki/Rotation_matrix#In_three_dimensions
-    """
-    mat = create_identity(dtype)
-    mat[0:3, 0:3] = matrix33.create_from_x_rotation(theta, dtype)
-    return mat
-
-def create_from_y_rotation(theta, dtype=None):
-    """Creates a matrix with the specified rotation about the Y axis.
-
-    :param float theta: The rotation, in radians, about the Y-axis.
-    :rtype: numpy.array
-    :return: A matrix with the shape (4,4) with the specified rotation about
-        the Y-axis.
-
-    .. seealso:: http://en.wikipedia.org/wiki/Rotation_matrix#In_three_dimensions
-    """
-    mat = create_identity(dtype)
-    mat[0:3, 0:3] = matrix33.create_from_y_rotation(theta, dtype)
-    return mat
-
-def create_from_z_rotation(theta, dtype=None):
-    """Creates a matrix with the specified rotation about the Z axis.
-
-    :param float theta: The rotation, in radians, about the Z-axis.
-    :rtype: numpy.array
-    :return: A matrix with the shape (4,4) with the specified rotation about
-        the Z-axis.
-
-    .. seealso:: http://en.wikipedia.org/wiki/Rotation_matrix#In_three_dimensions
-    """
-    mat = create_identity(dtype)
-    mat[0:3, 0:3] = matrix33.create_from_z_rotation(theta, dtype)
-    return mat
-
-@all_parameters_as_numpy_arrays
-def apply_to_vector(mat, vec):
-    """Apply a matrix to a vector.
-
-    The matrix's rotation and translation are applied to the vector.
-    Supports multiple matrices and vectors.
-
-    :param numpy.array mat: The rotation / translation matrix.
-        Can be a list of matrices.
-    :param numpy.array vec: The vector to modify.
-        Can be a numpy.array of vectors. ie. numpy.array([[x1,...], [x2,...], ...])
-    :rtype: numpy.array
-    :return: The vectors rotated by the specified matrix.
-    """
-    size = vec.shape[len(vec.shape) - 1]
-    if size == 3:
-        # convert to a vec4
-        if len(vec.shape) == 1:
-            vec4 = np.array([vec[0], vec[1], vec[2], 1.], dtype=vec.dtype)
-            vec4 = np.dot(vec4, mat)
-            if np.abs(vec4[3]) < 1e-8:
-                vec4[:] = [np.inf, np.inf, np.inf, np.inf]
-            else:
-                vec4 /= vec4[3]
-            return vec4[:3]
+            # matrix33
+            if obj.shape == (3,3) or isinstance(obj, Matrix33):
+                obj = matrix44.create_from_matrix33(obj, dtype=dtype)
+            # quaternion
+            elif obj.shape == (4,) or isinstance(obj, Quaternion):
+                obj = matrix44.create_from_quaternion(obj, dtype=dtype)
         else:
-            vec4 = np.array([[v[0], v[1], v[2], 1.] for v in vec], dtype=vec.dtype)
-            vec4 = np.dot(vec4, mat)
-            for i in range(vec4.shape[0]):
-                if np.abs(vec4[i,3])<1e-8:
-                    vec4[i,:] = [np.inf, np.inf, np.inf, np.inf]
-                else:
-                    vec4[i,:] /= vec4[i,3]
-            return vec4[:,:3]
-    elif size == 4:
-        return np.dot(vec, mat)
-    else:
-        raise ValueError("Vector size unsupported")
+            obj = np.zeros(cls._shape, dtype=dtype)
+        obj = obj.view(cls)
+        return super(Matrix44, cls).__new__(cls, obj)
 
-def multiply(m1, m2):
-    """Multiply two matricies, m1 . m2.
+    ########################
+    # Basic Operators
+    @dispatch(BaseObject)
+    def __add__(self, other):
+        self._unsupported_type('add', other)
 
-    This is essentially a wrapper around
-    numpy.dot(m1, m2)
+    @dispatch(BaseObject)
+    def __sub__(self, other):
+        self._unsupported_type('subtract', other)
 
-    :param numpy.array m1: The first matrix.
-        Can be a list of matrices.
-    :param numpy.array m2: The second matrix.
-        Can be a list of matrices.
-    :rtype: numpy.array
-    :return: A matrix that results from multiplying m1 by m2.
-    """
-    return np.dot(m1, m2)
+    @dispatch(BaseObject)
+    def __mul__(self, other):
+        self._unsupported_type('multiply', other)
 
-def create_perspective_projection(fovy, aspect, near, far, dtype=None):
-    """Creates perspective projection matrix.
+    @dispatch(BaseObject)
+    def __truediv__(self, other):
+        self._unsupported_type('divide', other)
 
-    .. seealso:: http://www.opengl.org/sdk/docs/man2/xhtml/gluPerspective.xml
-    .. seealso:: http://www.geeks3d.com/20090729/howto-perspective-projection-matrix-in-opengl/
+    @dispatch(BaseObject)
+    def __div__(self, other):
+        self._unsupported_type('divide', other)
 
-    :param float fovy: field of view in y direction in degrees
-    :param float aspect: aspect ratio of the view (width / height)
-    :param float near: distance from the viewer to the near clipping plane (only positive)
-    :param float far: distance from the viewer to the far clipping plane (only positive)
-    :rtype: numpy.array
-    :return: A projection matrix representing the specified perpective.
-    """
-    ymax = near * np.tan(fovy * np.pi / 360.0)
-    xmax = ymax * aspect
-    return create_perspective_projection_from_bounds(-xmax, xmax, -ymax, ymax, near, far, dtype=dtype)
+    def __invert__(self):
+        return self.inverse
 
-def create_perspective_projection_matrix(fovy, aspect, near, far, dtype=None):    # TDOO: mark as deprecated
-    """Creates perspective projection matrix.
+    ########################
+    # Matrices
+    @dispatch((BaseMatrix, np.ndarray, list))
+    def __add__(self, other):
+        return Matrix44(super(Matrix44, self).__add__(Matrix44(other)))
 
-    .. seealso:: http://www.opengl.org/sdk/docs/man2/xhtml/gluPerspective.xml
-    .. seealso:: http://www.geeks3d.com/20090729/howto-perspective-projection-matrix-in-opengl/
+    @dispatch((BaseMatrix, np.ndarray, list))
+    def __sub__(self, other):
+        return Matrix44(super(Matrix44, self).__sub__(Matrix44(other)))
 
-    :param float fovy: field of view in y direction in degrees
-    :param float aspect: aspect ratio of the view (width / height)
-    :param float near: distance from the viewer to the near clipping plane (only positive)
-    :param float far: distance from the viewer to the far clipping plane (only positive)
-    :rtype: numpy.array
-    :return: A projection matrix representing the specified perpective.
-    """
-    return create_perspective_projection(fovy, aspect, near, far, dtype)
+    @dispatch((BaseMatrix, np.ndarray, list))
+    def __mul__(self, other):
+        return Matrix44(matrix44.multiply(Matrix44(other), self))
 
-def create_perspective_projection_from_bounds(
-    left,
-    right,
-    bottom,
-    top,
-    near,
-    far,
-    dtype=None
-):
-    """Creates a perspective projection matrix using the specified near
-    plane dimensions.
+    @dispatch((BaseMatrix, np.ndarray, list))
+    def __ne__(self, other):
+        return bool(np.any(super(Matrix44, self).__ne__(other)))
 
-    :param float left: The left of the near plane relative to the plane's centre.
-    :param float right: The right of the near plane relative to the plane's centre.
-    :param float top: The top of the near plane relative to the plane's centre.
-    :param float bottom: The bottom of the near plane relative to the plane's centre.
-    :param float near: The distance of the near plane from the camera's origin.
-        It is recommended that the near plane is set to 1.0 or above to avoid rendering issues
-        at close range.
-    :param float far: The distance of the far plane from the camera's origin.
-    :rtype: numpy.array
-    :return: A projection matrix representing the specified perspective.
+    @dispatch((BaseMatrix, np.ndarray, list))
+    def __eq__(self, other):
+        return bool(np.all(super(Matrix44, self).__eq__(other)))
 
-    .. seealso:: http://www.gamedev.net/topic/264248-building-a-projection-matrix-without-api/
-    .. seealso:: http://www.glprogramming.com/red/chapter03.html
-    """
+    ########################
+    # Quaternions
+    @dispatch(BaseQuaternion)
+    def __mul__(self, other):
+        m = other.matrix44
+        return self * m
 
-    """
-    E 0 A 0
-    0 F B 0
-    0 0 C D
-    0 0-1 0
+    ########################
+    # Vectors
+    @dispatch(BaseVector)
+    def __mul__(self, other):
+        return type(other)(matrix44.apply_to_vector(self, other))
 
-    A = (right+left)/(right-left)
-    B = (top+bottom)/(top-bottom)
-    C = -(far+near)/(far-near)
-    D = -2*far*near/(far-near)
-    E = 2*near/(right-left)
-    F = 2*near/(top-bottom)
-    """
-    A = (right + left) / (right - left)
-    B = (top + bottom) / (top - bottom)
-    C = -(far + near) / (far - near)
-    D = -2. * far * near / (far - near)
-    E = 2. * near / (right - left)
-    F = 2. * near / (top - bottom)
+    ########################
+    # Number
+    @dispatch((Number, np.number))
+    def __add__(self, other):
+        return Matrix44(super(Matrix44, self).__add__(other))
 
-    return np.array((
-        (  E, 0., 0., 0.),
-        ( 0.,  F, 0., 0.),
-        (  A,  B,  C,-1.),
-        ( 0., 0.,  D, 0.),
-    ), dtype=dtype)
+    @dispatch((Number, np.number))
+    def __sub__(self, other):
+        return Matrix44(super(Matrix44, self).__sub__(other))
 
-def create_perspective_projection_matrix_from_bounds(
-    left, right, bottom, top, near, far, dtype=None):    # TDOO: mark as deprecated
-    """Creates a perspective projection matrix using the specified near
-    plane dimensions.
+    @dispatch((Number, np.number))
+    def __mul__(self, other):
+        return Matrix44(super(Matrix44, self).__mul__(other))
 
-    :param float left: The left of the near plane relative to the plane's centre.
-    :param float right: The right of the near plane relative to the plane's centre.
-    :param float top: The top of the near plane relative to the plane's centre.
-    :param float bottom: The bottom of the near plane relative to the plane's centre.
-    :param float near: The distance of the near plane from the camera's origin.
-        It is recommended that the near plane is set to 1.0 or above to avoid rendering issues
-        at close range.
-    :param float far: The distance of the far plane from the camera's origin.
-    :rtype: numpy.array
-    :return: A projection matrix representing the specified perspective.
+    @dispatch((Number, np.number))
+    def __truediv__(self, other):
+        return Matrix44(super(Matrix44, self).__truediv__(other))
 
-    .. seealso:: http://www.gamedev.net/topic/264248-building-a-projection-matrix-without-api/
-    .. seealso:: http://www.glprogramming.com/red/chapter03.html
-    """
+    @dispatch((Number, np.number))
+    def __div__(self, other):
+        return Matrix44(super(Matrix44, self).__div__(other))
 
-    """
-    E 0 A 0
-    0 F B 0
-    0 0 C D
-    0 0-1 0
+    ########################
+    # Methods and Properties
+    @property
+    def matrix33(self):
+        """Returns a Matrix33 representing this matrix.
+        """
+        return Matrix33(self)
 
-    A = (right+left)/(right-left)
-    B = (top+bottom)/(top-bottom)
-    C = -(far+near)/(far-near)
-    D = -2*far*near/(far-near)
-    E = 2*near/(right-left)
-    F = 2*near/(top-bottom)
-    """
-    return create_perspective_projection_from_bounds(
-        left, right, bottom, top, near, far, dtype
-    )
+    @property
+    def matrix44(self):
+        """Returns the Matrix44.
 
-def create_orthogonal_projection(
-    left,
-    right,
-    bottom,
-    top,
-    near,
-    far,
-    dtype=None
-):
-    """Creates an orthogonal projection matrix.
+        This can be handy if you're not sure what type of Matrix class you have
+        but require a Matrix44.
+        """
+        return self
 
-    :param float left: The left of the near plane relative to the plane's centre.
-    :param float right: The right of the near plane relative to the plane's centre.
-    :param float top: The top of the near plane relative to the plane's centre.
-    :param float bottom: The bottom of the near plane relative to the plane's centre.
-    :param float near: The distance of the near plane from the camera's origin.
-        It is recommended that the near plane is set to 1.0 or above to avoid rendering issues
-        at close range.
-    :param float far: The distance of the far plane from the camera's origin.
-    :rtype: numpy.array
-    :return: A projection matrix representing the specified orthogonal perspective.
+    @property
+    def quaternion(self):
+        """Returns a Quaternion representing this matrix.
+        """
+        return Quaternion(self)
 
-    .. seealso:: http://msdn.microsoft.com/en-us/library/dd373965(v=vs.85).aspx
-    """
+    def decompose(self):
+        """Decomposes an affine transformation matrix into its scale, rotation and
+        translation components.
 
-    """
-    A 0 0 Tx
-    0 B 0 Ty
-    0 0 C Tz
-    0 0 0 1
+        :param numpy.array m: A matrix.
+        :return: tuple (scale, rotation, translation)
+            Vector3 scale
+            Quaternion rotation
+            Vector3 translation
+        """
+        scale, rotate, translate = matrix44.decompose(self)
+        return Vector3(scale), Quaternion(rotate), Vector3(translate)
 
-    A = 2 / (right - left)
-    B = 2 / (top - bottom)
-    C = -2 / (far - near)
-
-    Tx = (right + left) / (right - left)
-    Ty = (top + bottom) / (top - bottom)
-    Tz = (far + near) / (far - near)
-    """
-    rml = right - left
-    tmb = top - bottom
-    fmn = far - near
-
-    A = 2. / rml
-    B = 2. / tmb
-    C = -2. / fmn
-    Tx = -(right + left) / rml
-    Ty = -(top + bottom) / tmb
-    Tz = -(far + near) / fmn
-
-    return np.array((
-        ( A, 0., 0., 0.),
-        (0.,  B, 0., 0.),
-        (0., 0.,  C, 0.),
-        (Tx, Ty, Tz, 1.),
-    ), dtype=dtype)
-
-def create_orthogonal_projection_matrix(
-    left, right, bottom, top, near, far, dtype=None):    # TDOO: mark as deprecated
-    """Creates an orthogonal projection matrix.
-
-    :param float left: The left of the near plane relative to the plane's centre.
-    :param float right: The right of the near plane relative to the plane's centre.
-    :param float top: The top of the near plane relative to the plane's centre.
-    :param float bottom: The bottom of the near plane relative to the plane's centre.
-    :param float near: The distance of the near plane from the camera's origin.
-        It is recommended that the near plane is set to 1.0 or above to avoid rendering issues
-        at close range.
-    :param float far: The distance of the far plane from the camera's origin.
-    :rtype: numpy.array
-    :return: A projection matrix representing the specified orthogonal perspective.
-
-    .. seealso:: http://msdn.microsoft.com/en-us/library/dd373965(v=vs.85).aspx
-    """
-
-    """
-    A 0 0 Tx
-    0 B 0 Ty
-    0 0 C Tz
-    0 0 0 1
-
-    A = 2 / (right - left)
-    B = 2 / (top - bottom)
-    C = -2 / (far - near)
-
-    Tx = (right + left) / (right - left)
-    Ty = (top + bottom) / (top - bottom)
-    Tz = (far + near) / (far - near)
-    """
-    return create_orthogonal_projection(
-        left, right, bottom, top, near, far, dtype
-    )
-
-def create_look_at(eye, target, up, dtype=None):
-    """Creates a look at matrix according to OpenGL standards.
-
-    :param numpy.array eye: Position of the camera in world coordinates.
-    :param numpy.array target: The position in world coordinates that the
-        camera is looking at.
-    :param numpy.array up: The up vector of the camera.
-    :rtype: numpy.array
-    :return: A look at matrix that can be used as a viewMatrix
-    """
-
-    eye = np.asarray(eye)
-    target = np.asarray(target)
-    up = np.asarray(up)
-
-    forward = vector.normalize(target - eye)
-    side = vector.normalize(np.cross(forward, up))
-    up = vector.normalize(np.cross(side, forward))
-
-    return np.array((
-            (side[0], up[0], -forward[0], 0.),
-            (side[1], up[1], -forward[1], 0.),
-            (side[2], up[2], -forward[2], 0.),
-            (-np.dot(side, eye), -np.dot(up, eye), np.dot(forward, eye), 1.0)
-        ), dtype=dtype)
-
-
-def inverse(m):
-    """Returns the inverse of the matrix.
-
-    This is essentially a wrapper around numpy.linalg.inv.
-
-    :param numpy.array m: A matrix.
-    :rtype: numpy.array
-    :return: The inverse of the specified matrix.
-
-    .. seealso:: http://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.inv.html
-    """
-    return np.linalg.inv(m)
-
-
-def decompose(m):
-    """Decomposes an affine transformation matrix into its scale, rotation and
-    translation components.
-
-    :param numpy.array m: A matrix.
-    :return: tuple (scale, rotation, translation)
-        numpy.array scale vector3
-        numpy.array rotation quaternion
-        numpy.array translation vector3
-    """
-    m = np.asarray(m)
-
-    scale = np.linalg.norm(m[:3, :3], axis=1)
-
-    det = np.linalg.det(m)
-    if det < 0:
-        scale[0] *= -1
-
-    position = m[3, :3]
-
-    rotation = m[:3, :3] * (1 / scale)[:, None]
-
-    return scale, quaternion.create_from_matrix(rotation), position
+from .matrix33 import Matrix33
+from .quaternion import Quaternion
+from .vector3 import Vector3

@@ -2,7 +2,7 @@
 """Common Vector manipulation functions.
 """
 import numpy as np
-from .utils import all_parameters_as_numpy_arrays, parameters_as_numpy_arrays
+from ..utils import all_parameters_as_numpy_arrays, parameters_as_numpy_arrays
 
 
 @all_parameters_as_numpy_arrays

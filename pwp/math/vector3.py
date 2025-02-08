@@ -1,149 +1,200 @@
 # -*- coding: utf-8 -*-
-"""Provides functions for creating and manipulating 3D vectors.
+"""Represents a 3 dimensional Vector.
+
+The Vector3 class provides a number of convenient functions and
+conversions.
+::
+
+    import numpy as np
+    from pyrr import Quaternion, Matrix33, Matrix44, Vector3
+
+    v = Vector3()
+    v = Vector3([1.,2.,3.])
+
+    # copy constructor
+    v = Vector3(Vector3())
+
+    # add / subtract vectors
+    v = Vector3([1.,2.,3.]) + Vector3([4.,5.,6.])
+
+    # rotate a vector by a Matrix
+    v = Matrix33.identity() * Vector3([1.,2.,3.])
+    v = Matrix44.identity() * Vector3([1.,2.,3.])
+
+    # rotate a vector by a Quaternion
+    v = Quaternion() * Vector3([1.,2.,3.])
+
+    # get the dot-product of 2 vectors
+    d = Vector3([1.,0.,0.]) | Vector3([0.,1.,0.])
+
+    # get the cross-product of 2 vectors
+    x = Vector3([1.,0.,0.]) ^ Vector3([0.,1.,0.])
+
+    # access specific parts of the vector
+    # x value
+    x,y,z = v.x, v.y, v.z
+
+    # access groups of values as np.ndarray's
+    xy = v.xy
+    xz = v.xz
+    xyz = v.xyz
 """
+from numbers import Number
 import numpy as np
+from multipledispatch import dispatch
+from .base import BaseObject, BaseVector3, BaseMatrix44, NpProxy
+from .modules import vector3
 
-# import common vector operations
-from .vector import *
+# TODO: add < <= > >= == != operators
 
+class Vector3(BaseVector3):
+    _module = vector3
+    _shape = (3,)
 
-def create(x=0., y=0., z=0., dtype=None):
-    if isinstance(x, (list, np.ndarray)):
-        raise ValueError('Function requires non-list arguments')
-    return np.array([x,y,z], dtype=dtype)
+    #: The X value of this Vector.
+    x = NpProxy(0)
+    #: The Y value of this Vector.
+    y = NpProxy(1)
+    #: The Z value of this Vector.
+    z = NpProxy(2)
+    #: The X,Y values of this Vector as a numpy.ndarray.
+    xy = NpProxy([0,1])
+    #: The X,Y,Z values of this Vector as a numpy.ndarray.
+    xyz = NpProxy([0,1,2])
+    #: The X,Z values of this Vector as a numpy.ndarray.
+    xz = NpProxy([0,2])
 
-def create_unit_length_x(dtype=None):
-    return np.array([1.0, 0.0, 0.0], dtype=dtype)
+    ########################
+    # Creation
+    @classmethod
+    def from_vector4(cls, vector, dtype=None):
+        """Create a Vector3 from a Vector4.
 
-def create_unit_length_y(dtype=None):
-    return np.array([0.0, 1.0, 0.0], dtype=dtype)
+        Returns the Vector3 and the W component as a tuple.
+        """
+        vec, w = vector3.create_from_vector4(vector, dtype)
+        return (cls(vec), w)
 
-def create_unit_length_z(dtype=None):
-    return np.array([0.0, 0.0, 1.0], dtype=dtype)
+    def __new__(cls, value=None, w=0.0, dtype=None):
+        if value is not None:
+            obj = value
+            if not isinstance(value, np.ndarray):
+                obj = np.array(value, dtype=dtype)
 
-@parameters_as_numpy_arrays('vector')
-def create_from_vector4(vector, dtype=None):
-    """Returns a vector3 and the W component as a tuple.
-    """
-    dtype = dtype or vector.dtype
-    return (np.array([vector[0], vector[1], vector[2]], dtype=dtype), vector[3])
+            # matrix44
+            if obj.shape in ((4,4,)) or isinstance(obj, BaseMatrix44):
+                obj = vector3.create_from_matrix44_translation(obj, dtype=dtype)
+        else:
+            obj = np.zeros(cls._shape, dtype=dtype)
+        obj = obj.view(cls)
+        return super(Vector3, cls).__new__(cls, obj)
 
-@parameters_as_numpy_arrays('mat')
-def create_from_matrix44_translation(mat, dtype=None):
-    return np.array(mat[3, :3], dtype=dtype)
+    ########################
+    # Basic Operators
+    @dispatch(BaseObject)
+    def __add__(self, other):
+        self._unsupported_type('add', other)
 
-def cross(v1, v2):
-    """Calculates the cross-product of two vectors.
+    @dispatch(BaseObject)
+    def __sub__(self, other):
+        self._unsupported_type('subtract', other)
 
-    :param numpy.array v1: an Nd array with the final dimension
-        being size 3. (a vector)
-    :param numpy.array v2: an Nd array with the final dimension
-        being size 3. (a vector)
-    :rtype: np.array
-    :return: The cross product of v1 and v2.
-    """
-    return np.cross(v1, v2)
+    @dispatch(BaseObject)
+    def __mul__(self, other):
+        self._unsupported_type('multiply', other)
 
-def generate_normals(v1, v2, v3, normalize_result=True):
-    r"""Generates a normal vector for 3 vertices.
+    @dispatch(BaseObject)
+    def __truediv__(self, other):
+        self._unsupported_type('divide', other)
 
-    The result is a normalized vector.
+    @dispatch(BaseObject)
+    def __div__(self, other):
+        self._unsupported_type('divide', other)
 
-    It is assumed the ordering is counter-clockwise starting
-    at v1, v2 then v3::
+    @dispatch((BaseObject, Number, np.number))
+    def __xor__(self, other):
+        self._unsupported_type('XOR', other)
 
-        v1      v3
-          \    /
-            v2
+    @dispatch((BaseObject, Number, np.number))
+    def __or__(self, other):
+        self._unsupported_type('OR', other)
 
-    The vertices are Nd arrays and may be 1d or Nd.
-    As long as the final axis is of size 3.
+    @dispatch((BaseObject, Number, np.number))
+    def __ne__(self, other):
+        self._unsupported_type('NE', other)
 
-    For 1d arrays::
-        >>> v1 = numpy.array( [ 1.0, 0.0, 0.0 ] )
-        >>> v2 = numpy.array( [ 0.0, 0.0, 0.0 ] )
-        >>> v3 = numpy.array( [ 0.0, 1.0, 0.0 ] )
-        >>> vector.generate_normals( v1, v2, v3 )
-        array([ 0.,  0., -1.])
+    @dispatch((BaseObject, Number, np.number))
+    def __eq__(self, other):
+        self._unsupported_type('EQ', other)
 
-    For Nd arrays::
-        >>> v1 = numpy.array( [ [ 1.0, 0.0, 0.0 ], [ 1.0, 0.0, 0.0 ] ] )
-        >>> v2 = numpy.array( [ [ 0.0, 0.0, 0.0 ], [ 0.0, 0.0, 0.0 ] ] )
-        >>> v3 = numpy.array( [ [ 0.0, 1.0, 0.0 ], [ 0.0, 1.0, 0.0 ] ] )
-        >>> vector.generate_normals( v1, v2, v3 )
-        array([[ 0.,  0., -1.],
-               [ 0.,  0., -1.]])
+    ########################
+    # Vectors
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __add__(self, other):
+        return Vector3(super(Vector3, self).__add__(other))
 
-    :param numpy.array v1: an Nd array with the final dimension
-        being size 3. (a vector)
-    :param numpy.array v2: an Nd array with the final dimension
-        being size 3. (a vector)
-    :param numpy.array v3: an Nd array with the final dimension
-        being size 3. (a vector)
-    :param boolean normalize_result: Specifies if the result should
-        be normalized before being returned.
-    """
-    # make vectors relative to v2
-    # we assume opengl counter-clockwise ordering
-    a = v1 - v2
-    b = v3 - v2
-    n = cross(b, a)
-    if normalize_result:
-        n = normalize(n)
-    return n
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __sub__(self, other):
+        return Vector3(super(Vector3, self).__sub__(other))
 
-def generate_vertex_normals(vertices, index, normalize_result=True):
-    """Generates a normal vector for each vertex.
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __mul__(self, other):
+        return Vector3(super(Vector3, self).__mul__(other))
 
-    The result is a normalized vector.
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __truediv__(self, other):
+        return Vector3(super(Vector3, self).__truediv__(other))
 
-    The index array should list the faces by indexing into the
-    vertices array. It is assumed the ordering in index is
-    counter-clockwise.
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __div__(self, other):
+        return Vector3(super(Vector3, self).__div__(other))
 
-    The vertices and index arrays are Nd arrays and must be 2d,
-    where the final axis is of size 3.
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __xor__(self, other):
+        return self.cross(other)
 
-    An example::
-        >>> vertices = numpy.array( [ [ 1.0, 0.0, 0.0 ], [ 0.0, 0.0, 0.0 ], [ 0.0, 1.0, 0.0 ] ] )
-        >>> index = numpy.array( [ [ 0, 2, 1 ] ] )
-        >>> vector.generate_vertex_normals( vertices, index )
-        array([[ 0.,  0., 1.], [ 0.,  0., 1.], [ 0.,  0., 1.]])
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __or__(self, other):
+        return self.dot(other)
 
-    :param numpy.array vertices: an 2d array with the final dimension
-        being size 3. (a vector)
-    :param numpy.array index: an Nd array with the final dimension
-        being size 3. (a vector)
-    :param boolean normalize_result: Specifies if the result should
-        be normalized before being returned.
-    """
-    v1, v2, v3 = np.rollaxis(vertices[index], axis=-2)
-    face_normals = generate_normals(v1, v2, v3, normalize_result=False)
-    vertex_normals = np.zeros_like(vertices)
-    for i in range(3):
-        np.add.at(vertex_normals, index[..., i], face_normals)
-    if normalize_result:
-        vertex_normals = normalize(vertex_normals)
-    return vertex_normals
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __ne__(self, other):
+        return bool(np.any(super(Vector3, self).__ne__(other)))
 
+    @dispatch((BaseVector3, np.ndarray, list))
+    def __eq__(self, other):
+        return bool(np.all(super(Vector3, self).__eq__(other)))
 
-class index:
-    #: The index of the X value within the vector
-    x = 0
+    ########################
+    # Number
+    @dispatch((Number,np.number))
+    def __add__(self, other):
+        return Vector3(super(Vector3, self).__add__(other))
 
-    #: The index of the Y value within the vector
-    y = 1
+    @dispatch((Number,np.number))
+    def __sub__(self, other):
+        return Vector3(super(Vector3, self).__sub__(other))
 
-    #: The index of the Z value within the vector
-    z = 2
+    @dispatch((Number,np.number))
+    def __mul__(self, other):
+        return Vector3(super(Vector3, self).__mul__(other))
 
+    @dispatch((Number,np.number))
+    def __truediv__(self, other):
+        return Vector3(super(Vector3, self).__truediv__(other))
 
-class unit:
-    #: A vector of unit length in the X-axis. (1.0, 0.0, 0.0)
-    x = create_unit_length_x()
+    @dispatch((Number,np.number))
+    def __div__(self, other):
+        return Vector3(super(Vector3, self).__div__(other))
 
-    #: A vector of unit length in the Y-axis. (0.0, 1.0, 0.0)
-    y = create_unit_length_y()
+    ########################
+    # Methods and Properties
+    @property
+    def inverse(self):
+        """Returns the opposite of this vector.
+        """
+        return Vector3(-self)
 
-    #: A vector of unit length in the Z-axis. (0.0, 0.0, 1.0)
-    z = create_unit_length_z()
+    @property
+    def vector3(self):
+        return self

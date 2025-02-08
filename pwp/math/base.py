@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from ...math import vector as vector
-from ...math import vector3 as vector3
+from .modules import vector as vector
+from .modules import vector3 as vector3
 
 class NpProxy(object):
     def __init__(self, index):

@@ -1,65 +1,14 @@
 # -*- coding: utf-8 -*-
 
-__all__ = [
-    'aabb',
-    'aambb',
-    'euler',
-    'geometric_tests',
-    'geometry',
-    'integer',
-    'line',
-    'matrix33',
-    'matrix44',
-    'plane',
-    'quaternion',
-    'ray',
-    'rectangle',
-    'sphere',
-    'trig',
-    'utils',
-    'vector',
-    'vector2',
-    'vector3',
-    'vector4',
-    'Matrix33',
-    'Matrix44',
-    'Quaternion',
-    'Vector2',
-    'Vector3',
-    'Vector4',
-]
+from .euler import *
+from .integer import *
+from .trig import *
+from .matrix33 import *
+from .matrix44 import *
+from .vector2 import *
+from .vector3 import *
+from .vector4 import *
 
-from . import (
-    aabb,
-    aambb,
-    euler,
-    geometric_tests,
-    geometry,
-    integer,
-    line,
-    matrix33,
-    matrix44,
-    plane,
-    quaternion,
-    ray,
-    rectangle,
-    sphere,
-    trig,
-    utils,
-    vector,
-    vector2,
-    vector3,
-    vector4,
-)
-
-from .objects import (
-    Matrix33,
-    Matrix44,
-    Quaternion,
-    Vector2,
-    Vector3,
-    Vector4
-)
 
 # because of circular imports, we cannot put these inside each module
 # so insert them here
