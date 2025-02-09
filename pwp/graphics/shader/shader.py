@@ -1,10 +1,13 @@
 import re
 import textwrap
+from typing import override, Callable, Any
+from types import FunctionType
 from OpenGL import GL
 from OpenGL.raw.GL.VERSION import GL_2_0
 import numpy as np
 from ..object import ManagedObject
 from ..proxy import Proxy
+from pyglsl import VertexStage, FragmentStage
 
 class ShaderProxy(Proxy):
     def __init__(self, property, dtype=None):
@@ -88,7 +91,7 @@ class Shader(ManagedObject):
             return cls(source)
 
     def __init__(self, source):
-        super(Shader, self).__init__()
+        super().__init__()
         self._set_source(source)
         self._compile()
 
@@ -123,14 +126,59 @@ class Shader(ManagedObject):
         return source.value
 
 
-
 class VertexShader(Shader):
     _type = GL.GL_VERTEX_SHADER
     _shader_bit = GL.GL_VERTEX_SHADER_BIT
 
+    @override
+    def __init__(self, source: str | VertexStage | Callable[..., Any]):
+        self._attrs = {}
+        super().__init__(source)
+
+    @property
+    def attributes(self):
+        return self._attrs
+
+    @override
+    def _set_source(self, source):
+        if not source:
+            raise ValueError("Shader source empty")
+        if isinstance(source, VertexStage):
+            GL.glShaderSource(self._handle, self.source.compile())
+        elif callable(source):
+            GL.glShaderSource(self._handle, VertexStage(source).compile())
+        elif isinstance(source, str):
+            GL.glShaderSource(self._handle, source)
+        else:
+            raise ValueError("Invalid Shader source type")
+
+    @override
+    def _compile(self):
+        Shader._compile(self)
+        source = self.source.decode('utf-8')
+        self._attrs = {}
+        for line in source.split('\n'):
+            p = [x for x in line.lstrip().split(' ') if x]
+            if p:
+                if p[0] == "in" or p[0].startswith("layout"):
+                    self._attrs[p[-1][:-1]] = p[-2]
+
 class FragmentShader(Shader):
     _type = GL.GL_FRAGMENT_SHADER
     _shader_bit = GL.GL_FRAGMENT_SHADER_BIT
+
+    @override
+    def _set_source(self, source):
+        if not source:
+            raise ValueError("Shader source empty")
+        if isinstance(source, FragmentStage):
+            GL.glShaderSource(self._handle, self.source.compile())
+        elif isinstance(self.source, Callable):
+            GL.glShaderSource(self._handle, FragmentStage(self.source).compile())
+        elif isinstance(self.source, str):
+            GL.glShaderSource(self._handle, self.source)
+        else:
+            print(source.__class__)
 
 class GeometryShader(Shader):
     _type = GL.GL_GEOMETRY_SHADER

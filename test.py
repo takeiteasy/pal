@@ -1,9 +1,16 @@
 import pwp
 from typing import override
+from sys import exit
+
+from pwp.graphics.shader.default import default_vertex_shader, default_fragment_shader
 
 class TestScene(pwp.Scene):
     @override
     def enter(self):
+        x = pwp.VertexShader(default_vertex_shader)
+        print(x)
+        print(x.attributes)
+        exit(0)
         pass
 
     @override
