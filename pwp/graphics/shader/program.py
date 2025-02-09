@@ -1,11 +1,15 @@
 from OpenGL import GL
 import numpy as np
 from numpy.compat import basestring
-
 from .variables import ProgramVariable, Attribute, Uniform
 from ..object import ManagedObject, BindableObject, DescriptorMixin
 from ..proxy import Integer32Proxy
 from ..proxy import Proxy
+from pyglsl import Stage
+from .shader import VertexShader, FragmentShader
+from typing import TypeAlias, Callable, Any
+
+type ShaderSource = str | Stage | Callable[[Any], Any]
 
 """
 TODO: https://www.opengl.org/registry/specs/ARB/separate_shader_objects.txt
@@ -50,37 +54,18 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
     link_status = ProgramProxy(GL.GL_LINK_STATUS, dtype=np.bool)
     delete_status = ProgramProxy(GL.GL_DELETE_STATUS, dtype=np.bool)
 
-    def __init__(self, shaders, frag_locations=None, **attributes):
+    def __init__(self, vertex: ShaderSource, fragment: ShaderSource):
         super(Program, self).__init__()
         self._loaded = False
-        self._attributes = None
-        self._uniforms = None
-
-        for shader in shaders:
-            self._attach(shader)
-
-        if frag_locations:
-            if isinstance(frag_locations, basestring):
-                frag_locations = ((frag_locations, 0),)
-            for name, number in frag_locations:
-                self._set_frag_location(name, number)
-
-        # set our attributes before link time
-        for name, location in list(attributes.items()):
-            GL.glBindAttribLocation(self._handle, location, name)
-
+        vs = VertexShader(vertex)
+        fs = FragmentShader(fragment)
+        self._attributes = vs.attributes
+        self._uniforms = vs.uniforms
+        self._attach(vs)
+        self._attach(fs)
         self._link()
-
-        # detach shaders so they can be free'ed by opengl
-        for shader in shaders:
-            self._detach(shader)
-
-        # mark the program as loaded
-        # from now onwards, any calls to unknown variables or assignments
-        # will the program variables to load if they aren't already
-        # we do this, because loading the variables now will stall the pipeline
-        # until the gpu finishes linking, it's better to link programs in parallel
-        # and then query only when initially needed
+        self._detach(vs)
+        self._detach(fs)
         self._loaded = True
 
     def __getattr__(self, name):
@@ -175,3 +160,15 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
     @property
     def log(self):
         return GL.glGetProgramInfoLog(self._handle)
+
+class StaticProgram:
+    vertex_source = None
+    fragment_source = None
+    id = None
+
+    @classmethod
+    def __init__(cls):
+        if not cls.id:
+            p = Program(vertex=cls.vertex_source, fragment=cls.fragment_source)
+            cls.id = p.handle
+

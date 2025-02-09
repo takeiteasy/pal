@@ -3,7 +3,7 @@ multipledispatch==1.0.0
 numpy==2.2.2
 pillow==11.1.0
 pyaudiolib==0.0.1
-pyglsl==0.0.4
+pyglsl==0.0.5
 PyOpenGL==3.1.9
 quickwindow==0.0.1
 six==1.17.0

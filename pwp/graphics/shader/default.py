@@ -29,3 +29,9 @@ class FsOut(FragmentShaderOutputBlock):
 
 def default_fragment_shader(vs_out: VsOut, uniforms: FsUniforms) -> FsOut:
     return FsOut(fs_color=texture(uniforms.texture0, vs_out.texcoord) * uniforms.diffuse * vs_out.color)
+
+from .program import StaticProgram
+
+class DefaultShader(StaticProgram):
+    vertex_source = default_vertex_shader
+    fragment_source = default_fragment_shader
