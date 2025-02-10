@@ -23,4 +23,3 @@
 
 from .window import Hints, Keys, Mice, Joystick, Monitor, VideoMode, Window, ManagedWindow, FrameLimiter
 from .event import *
-from .quick import quick_window, get_quick_window, QuickWindow
