@@ -1,15 +1,14 @@
 from OpenGL import GL
 import numpy as np
-from numpy.compat import basestring
 from .variables import ProgramVariable, Attribute, Uniform
 from ..object import ManagedObject, BindableObject, DescriptorMixin
 from ..proxy import Integer32Proxy
 from ..proxy import Proxy
-from pyglsl import Stage
-from .shader import VertexShader, FragmentShader
-from typing import TypeAlias, Callable, Any
+from pyglsl import Stage, VertexStage, FragmentStage
+from .shader import Shader, VertexShader, FragmentShader, WrappedShader
+from typing import Callable, Any
 
-type ShaderSource = str | Stage | Callable[[Any], Any]
+type ShaderSource = Shader | Stage
 
 """
 TODO: https://www.opengl.org/registry/specs/ARB/separate_shader_objects.txt
@@ -54,19 +53,39 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
     link_status = ProgramProxy(GL.GL_LINK_STATUS, dtype=np.bool)
     delete_status = ProgramProxy(GL.GL_DELETE_STATUS, dtype=np.bool)
 
-    def __init__(self, vertex: ShaderSource, fragment: ShaderSource):
+    def __init__(self, shaders: list[ShaderSource]):
         super(Program, self).__init__()
+        self._uniforms = {}
+        self._attributes = {}
         self._loaded = False
-        vs = VertexShader(vertex)
-        fs = FragmentShader(fragment)
-        self._attributes = vs.attributes
-        self._uniforms = vs.uniforms
-        self._attach(vs)
-        self._attach(fs)
+        for i, shader in enumerate(shaders):
+            if isinstance(shader, Stage):
+                if isinstance(shader, VertexStage):
+                    shader = VertexShader(shader)
+                elif isinstance(shader, FragmentStage):
+                    shader = FragmentShader(shader)
+                else:
+                    assert False
+            elif isinstance(shader, Shader):
+                if isinstance(shader, WrappedShader):
+                    self._attributes |= shader.attributes
+                    self._uniforms |= shader.uniforms
+            else:
+                raise ValueError("Invalid Shader type")
+            self._attach(shader)
+            shaders[i] = shader
         self._link()
-        self._detach(vs)
-        self._detach(fs)
+        for shader in shaders:
+            self._detach(shader)
         self._loaded = True
+
+    @property
+    def attributes(self):
+        return self._attributes
+
+    @property
+    def uniforms(self):
+        return self._uniforms
 
     def __getattr__(self, name):
         # only load variables if the program is loaded and the attribute is unknown
@@ -100,58 +119,11 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
 
     def _link(self):
         GL.glLinkProgram(self._handle)
-
         if not self.link_status:
-            log = self.log
-            # TODO: parse the log?
-            raise ValueError(log)
-
+            raise ValueError(self.log)
         # linking sets the program as active
         # ensure we unbind the program
         self.unbind()
-
-    def _load_active_attributes(self):
-        # this is called by __getattr__ and __setattribute__
-        # it cannot make any assignments to self
-        # it MUST use self.__dict__ instead
-        store = VariableStore()
-        self.__dict__['_attributes'] = store
-        max_length = self.active_attribute_max_length
-        for index in range(self.active_attributes):
-            attribute = Attribute(self, index, max_length)
-            store[attribute.name] = attribute
-            self.__dict__[attribute.name] = attribute
-
-    def _load_active_uniforms(self):
-        # this is called by __getattr__ and __setattribute__
-        # it cannot make any assignments to self
-        # it MUST use self.__dict__ instead
-        store = VariableStore()
-        self.__dict__['_uniforms'] = store
-        max_length = self.active_uniform_max_length
-        for index in range(self.active_uniforms):
-            uniform = Uniform(self, index, max_length)
-            store[uniform.name] = uniform
-            self.__dict__[uniform.name] = uniform
-
-    def _load_variables(self):
-        self._load_active_attributes()
-        self._load_active_uniforms()
-
-    def _set_frag_location(self, name, number):
-        GL.glBindFragDataLocation(self._handle, number, name)
-
-    @property
-    def attributes(self):
-        if not self._attributes:
-            self._load_variables()
-        return self._attributes
-
-    @property
-    def uniforms(self):
-        if not self._uniforms:
-            self._load_variables()
-        return self._uniforms
 
     @property
     def valid(self):
@@ -162,13 +134,22 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
         return GL.glGetProgramInfoLog(self._handle)
 
 class StaticProgram:
+    version = "330 core"
     vertex_source = None
+    vertex_functions = None
     fragment_source = None
+    fragment_functions = None
     id = None
 
     @classmethod
     def __init__(cls):
         if not cls.id:
-            p = Program(vertex=cls.vertex_source, fragment=cls.fragment_source)
+            p = Program([VertexStage(cls.vertex_source,
+                                     version=cls.version,
+                                     library=cls.vertex_functions),
+                         FragmentStage(cls.fragment_source,
+                                       version=cls.version,
+                                       library=cls.fragment_functions)])
+            cls.attributes = p.attributes
+            cls.uniforms = p.uniforms
             cls.id = p.handle
-

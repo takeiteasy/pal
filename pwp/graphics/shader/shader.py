@@ -102,7 +102,6 @@ class Shader(ManagedObject):
     def _compile(self):
         GL.glCompileShader(self._handle)
         if not self.compile_status:
-         
             log = self.log
             errors = ShaderError.parse(self, self.source, log)
             string = '\n'.join(map(lambda x: str(x), errors))
@@ -132,13 +131,13 @@ ShaderStage = TypeVar("ShaderStage", bound=None)
 class WrappedShader(Shader, Generic[ShaderStage]):
     @override
     def __init__(self, source: str | ShaderStage | Callable[..., Any]):
-        self._attrs = {}
+        self._attributes = {}
         self._uniforms = {}
         super().__init__(source)
 
     @property
     def attributes(self):
-        return self._attrs
+        return self._attributes
 
     @property
     def uniforms(self):
@@ -149,7 +148,7 @@ class WrappedShader(Shader, Generic[ShaderStage]):
         if not source:
             raise ValueError("Shader source empty")
         if isinstance(source, Stage):
-            GL.glShaderSource(self._handle, self.source.compile())
+            GL.glShaderSource(self._handle, source.compile())
         elif callable(source):
             stage = self.__class__.__orig_bases__[0].__args__[0]
             if stage is VertexStage:
@@ -167,12 +166,12 @@ class WrappedShader(Shader, Generic[ShaderStage]):
     def _compile(self):
         Shader._compile(self)
         source = self.source.decode('utf-8')
-        self._attrs = {}
+        self._attributes = {}
         for line in source.split('\n'):
             p = [x for x in line.lstrip().split(' ') if x]
             if p:
                 if p[0] == "in" or p[0].startswith("layout"):
-                    self._attrs[p[-1][:-1]] = p[-2]
+                    self._attributes[p[-1][:-1]] = p[-2]
                 elif p[0] == "uniform":
                     self._uniforms[p[-1][:-1]] = p[-2]
 
