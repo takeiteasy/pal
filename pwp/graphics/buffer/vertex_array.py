@@ -1,7 +1,8 @@
 from OpenGL import GL
 from .buffer import IndexBuffer
 from .buffer_pointer import BufferPointer
-from ..object import ManagedObject, BindableObject
+from ..object import ManagedObject, BindableObject, UnmanagedObject
+
 
 class VertexArray(BindableObject, ManagedObject):
     _create_func = GL.glGenVertexArrays
@@ -64,3 +65,6 @@ class VertexArray(BindableObject, ManagedObject):
 
         with self:
             indices.render(primitive, start, count)
+
+class VertexArrayRef(VertexArray, UnmanagedObject):
+    pass

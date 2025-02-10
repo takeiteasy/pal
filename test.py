@@ -8,8 +8,6 @@ class TestScene(pwp.Scene):
         y = DefaultShader()
         z = DefaultShader()
         assert y.id == z.id
-        print(DefaultShader.attributes)
-        print(z.uniforms)
         pass
 
     @override

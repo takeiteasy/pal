@@ -3,7 +3,7 @@ from copy import copy
 from functools import reduce
 import numpy as np
 from OpenGL import GL
-from ..object import ManagedObject, BindableObject
+from ..object import ManagedObject, BindableObject, UnmanagedObject
 from .buffer_pointer import BufferPointer
 from ..texture import BufferTexture
 from .. import dtypes
@@ -130,6 +130,8 @@ class Buffer(BindableObject, ManagedObject):
     def names(self):
         return np.dtype(self._dtype).names
 
+class BufferRef(Buffer, UnmanagedObject):
+    pass
 
 class MappedBuffer(np.ndarray):
     def __new__(cls, input_array, access=None):

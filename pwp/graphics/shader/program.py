@@ -1,12 +1,12 @@
+
 from OpenGL import GL
 import numpy as np
 from .variables import ProgramVariable, Attribute, Uniform
-from ..object import ManagedObject, BindableObject, DescriptorMixin
+from ..object import ManagedObject, UnmanagedObject, BindableObject, DescriptorMixin
 from ..proxy import Integer32Proxy
 from ..proxy import Proxy
 from pyglsl import Stage, VertexStage, FragmentStage
 from .shader import Shader, VertexShader, FragmentShader, WrappedShader
-from typing import Callable, Any
 
 type ShaderSource = Shader | Stage
 
@@ -88,7 +88,7 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
         return self._uniforms
 
     def __getattr__(self, name):
-        # only load variables if the program is loaded and the attribute is unknown
+        # noinspection PyBroadException
         try:
             if self._loaded:
                 if not self._uniforms or not self._attributes:
@@ -102,6 +102,7 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
         raise AttributeError
 
     def __setattr__(self, name, value):
+        # noinspection PyBroadException
         try:
             if self._loaded:
                 if name not in self.__dict__:
@@ -133,6 +134,9 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
     def log(self):
         return GL.glGetProgramInfoLog(self._handle)
 
+class ProgramRef(Program, UnmanagedObject):
+    pass
+
 class StaticProgram:
     version = "330 core"
     vertex_source = None
@@ -144,12 +148,23 @@ class StaticProgram:
     @classmethod
     def __init__(cls):
         if not cls.id:
-            p = Program([VertexStage(cls.vertex_source,
-                                     version=cls.version,
-                                     library=cls.vertex_functions),
-                         FragmentStage(cls.fragment_source,
-                                       version=cls.version,
-                                       library=cls.fragment_functions)])
-            cls.attributes = p.attributes
-            cls.uniforms = p.uniforms
+            p = ProgramRef([VertexStage(cls.vertex_source,
+                                        version=cls.version,
+                                        library=cls.vertex_functions),
+                            FragmentStage(cls.fragment_source,
+                                          version=cls.version,
+                                          library=cls.fragment_functions)])
             cls.id = p.handle
+
+    @classmethod
+    def valid(cls):
+        return id is not None and bool(GL.glValidateProgram(cls.id))
+
+    def __int__(self):
+        return self.__class__.id
+
+    @classmethod
+    def delete(cls):
+        if cls.id:
+            GL.glDeleteProgram(cls.id)
+            cls.id = None

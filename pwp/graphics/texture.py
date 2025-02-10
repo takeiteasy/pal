@@ -3,7 +3,7 @@ from OpenGL.GL.ARB import texture_rg
 import numpy as np
 from . import dtypes
 from .proxy import Proxy, Integer32Proxy
-from .object import ManagedObject, BindableObject, DescriptorMixin
+from .object import ManagedObject, BindableObject, DescriptorMixin, UnmanagedObject
 from PIL import Image
 
 # TODO: add multisample texture
@@ -136,7 +136,6 @@ class ActiveUnitMetaClass(type):
     """
     active_unit = TextureUnitProxy()
 
-
 class Texture(DescriptorMixin, BindableObject, ManagedObject):
     __metaclass__ = ActiveUnitMetaClass
 
@@ -229,6 +228,8 @@ class Texture(DescriptorMixin, BindableObject, ManagedObject):
         except KeyError as e:
             raise ValueError(e.message)
 
+class TextureRef(Texture, UnmanagedObject):
+    pass
 
 class BasicTexture(Texture):
     _pil_formats = {
