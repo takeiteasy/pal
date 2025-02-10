@@ -4,7 +4,7 @@ from OpenGL.raw.GL.VERSION import GL_2_0
 import numpy as np
 from ..object import ManagedObject
 from ..proxy import Proxy
-from pyglsl import VertexStage, FragmentStage, Stage
+from .stage import VertexStage, FragmentStage, Stage
 import re
 import textwrap
 

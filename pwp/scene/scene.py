@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from ..math import Matrix44
 from .node import NodeType
 from .parent import ParentNode
-from quickwindow import Window, get_quick_window
+from ..window import Window, get_quick_window
 
 class Scene(ParentNode):
     def __init__(self, window: Window = None):
