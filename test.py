@@ -1,7 +1,7 @@
 import pwp
 from typing import override
 
-@pwp.initial_scene
+@pwp.main
 class TestScene(pwp.Scene):
     @override
     def enter(self):

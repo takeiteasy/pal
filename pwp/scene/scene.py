@@ -7,13 +7,8 @@ from ..core import get_window
 from ..core import initialize as pwp_initialize
 from typing import Optional
 
-__scene__ = None
-
 class Scene(ParentNode):
     def __init__(self, window: Window = None):
-        global __scene__
-        if not __scene__:
-            __scene__ = self
         ParentNode.__init__(self)
         self._wnd = window if window else get_window()
         if not self._wnd:
@@ -76,21 +71,23 @@ class Scene(ParentNode):
         for child in self.children:
             child.draw()
 
+__scene__ = None
+
 def get_scene():
     if not __scene__:
         raise RuntimeError("No active Scene")
     return __scene__
 
-def initial_scene(cls,
-                  width: Optional[int] = 640,
-                  height: Optional[int] = 480,
-                  title: Optional[str] = "pwp",
-                  frame_limit: Optional[int | str] = None,
-                  versions: Optional[tuple[int, int, bool]] = None,
-                  monitor: Optional[Monitor] = None,
-                  shared: Optional[Window] = None,
-                  hints: Optional[dict] = None,
-                  escape_key: Optional[Keys] = Keys.ESCAPE):
+def main(cls,
+         width: Optional[int] = 640,
+         height: Optional[int] = 480,
+         title: Optional[str] = "pwp",
+         frame_limit: Optional[int | str] = None,
+         versions: Optional[tuple[int, int, bool]] = None,
+         monitor: Optional[Monitor] = None,
+         shared: Optional[Window] = None,
+         hints: Optional[dict] = None,
+         escape_key: Optional[Keys] = Keys.ESCAPE):
     global __scene__
     if __scene__:
         raise RuntimeError("There can only be one @initial_scene")
