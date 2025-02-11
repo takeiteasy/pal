@@ -7,6 +7,10 @@ from ..core import get_window
 from ..core import initialize as pwp_initialize
 from typing import Optional
 
+__scene__ = []
+__next_scene = None
+__drop_scene = None
+
 class Scene(ParentNode):
     def __init__(self, window: Window = None):
         ParentNode.__init__(self)
@@ -58,6 +62,12 @@ class Scene(ParentNode):
     def enter(self):
         pass
 
+    def reenter(self):
+        pass
+
+    def background(self):
+        pass
+
     def exit(self):
         pass
 
@@ -71,43 +81,64 @@ class Scene(ParentNode):
         for child in self.children:
             child.draw()
 
-__scene__ = None
+def push_scene(scene: Scene):
+    global __next_scene
+    if __next_scene is not None:
+        raise RuntimeError("Next scene already queued")
+    __next_scene = scene
+
+def drop_scene():
+    global __scene__, __drop_scene
+    if __drop_scene is not None:
+        raise RuntimeError("Drop scene already queued")
+    __drop_scene = __scene__[-1:]
+
+def main_scene():
+    global __scene__, __drop_scene
+    __drop_scene = __scene__[1:]
 
 def get_scene():
     if not __scene__:
         raise RuntimeError("No active Scene")
-    return __scene__
+    return __scene__[0]
 
-def main(cls,
-         width: Optional[int] = 640,
-         height: Optional[int] = 480,
-         title: Optional[str] = "pwp",
-         frame_limit: Optional[int | str] = None,
-         versions: Optional[tuple[int, int, bool]] = None,
-         monitor: Optional[Monitor] = None,
-         shared: Optional[Window] = None,
-         hints: Optional[dict] = None,
-         escape_key: Optional[Keys] = Keys.ESCAPE):
-    global __scene__
+def main(cls):
+    global __scene__, __drop_scene, __next_scene
     if __scene__:
         raise RuntimeError("There can only be one @initial_scene")
-    pwp_initialize(width=width,
-                   height=height,
-                   title=title,
-                   frame_limit=frame_limit,
-                   versions=versions,
-                   monitor=monitor,
-                   shared=shared,
-                   hints=hints)
-    __scene__ = cls()
-    __scene__.enter()
-    wnd = get_window()
+    wnd = pwp_initialize()
+    scn = cls()
+    __scene__.append(scn)
+    scn = cls()
+    scn.enter()
     for dt in wnd.loop():
+        if not __scene__:
+            wnd.quit()
         for e in wnd.events():
-            if escape_key and isinstance(e, KeyEvent):
-                if e.key == escape_key:
-                    wnd.quit()
-            __scene__.event(e)
-        __scene__.step(dt)
-        __scene__.draw()
+            scn.event(e)
+        scn.step(dt)
+        scn.draw()
+        if __drop_scene:
+            if isinstance(__drop_scene, list):
+                for _scn in reversed(__drop_scene):
+                    _scn.exit()
+            elif isinstance(__drop_scene, Scene):
+                __drop_scene.exit()
+            else:
+                raise RuntimeError("Invalid Scene")
+            __scene__ = __scene__[:-len(__drop_scene)]
+            if __scene__:
+                scn = __scene__[-1]
+                scn.reenter()
+            __drop_scene = None
+        if __next_scene:
+            if isinstance(__next_scene, Scene):
+                if __scene__:
+                    __scene__[-1].background()
+                __scene__.append(__next_scene)
+                scn = __next_scene
+                scn.enter()
+                __next_scene = None
+            else:
+                raise RuntimeError("Invalid Scene")
     return cls

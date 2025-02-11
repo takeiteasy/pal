@@ -58,3 +58,4 @@ def initialize(width: Optional[int] = 640,
     else:
         raise SystemExit("Proper OpenGL 3.x context not found")
     __window__ = QuickWindow(width, height, title, frame_limit, monitor=monitor, shared=shared, hints=hints, callbacks=None)
+    return __window__
