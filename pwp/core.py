@@ -1,4 +1,4 @@
-from .window import ManagedWindow, FrameLimiter, Monitor, Window
+from .window import ManagedWindow, FrameLimiter, Monitor, Window, Keys
 from .window.window import init_glfw
 from .window import glfw as api
 from typing import Optional
@@ -32,7 +32,8 @@ def initialize(width: Optional[int] = 640,
                versions: Optional[tuple[int, int, bool]] = None,
                monitor: Optional[Monitor] = None,
                shared: Optional[Window] = None,
-               hints: Optional[dict] = None):
+               hints: Optional[dict] = None,
+               escape_key: Optional[Keys] = None):
     global __window__
     if __window__ is not None:
         raise RuntimeError("Window already initialized")
@@ -57,5 +58,13 @@ def initialize(width: Optional[int] = 640,
             print("%s.%s %s: %s" % (vermaj, vermin, iscore_str, e))
     else:
         raise SystemExit("Proper OpenGL 3.x context not found")
-    __window__ = QuickWindow(width, height, title, frame_limit, monitor=monitor, shared=shared, hints=hints, callbacks=None)
+    __window__ = QuickWindow(width=width,
+                             height=height,
+                             title=title,
+                             frame_limit=frame_limit,
+                             monitor=monitor,
+                             shared=shared,
+                             hints=hints,
+                             callbacks=None,
+                             escape_key=escape_key)
     return __window__

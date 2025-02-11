@@ -5,13 +5,14 @@ from .parent import ParentNode
 from ..window import Window, Monitor, Keys, KeyEvent
 from ..core import get_window
 from ..core import initialize as pwp_initialize
-from typing import Optional
 
 __scene__ = []
 __next_scene = None
 __drop_scene = None
 
 class Scene(ParentNode):
+    window_attrs: dict = {}
+
     def __init__(self, window: Window = None):
         ParentNode.__init__(self)
         self._wnd = window if window else get_window()
@@ -106,10 +107,9 @@ def main(cls):
     global __scene__, __drop_scene, __next_scene
     if __scene__:
         raise RuntimeError("There can only be one @initial_scene")
-    wnd = pwp_initialize()
+    wnd = pwp_initialize(**cls.window_attrs)
     scn = cls()
     __scene__.append(scn)
-    scn = cls()
     scn.enter()
     for dt in wnd.loop():
         if not __scene__:

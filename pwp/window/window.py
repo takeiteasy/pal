@@ -740,9 +740,12 @@ class Window(WindowType):
 
 class ManagedWindow(Window):
     def __init__(self, *args, **kwargs):
-        if "callbacks" in kwargs.keys():
-            del kwargs["callbacks"]
-        super().__init__(*args, **kwargs)
+        self.escape_key = kwargs["escape_key"] if "escape_key" in kwargs.keys() else None
+        super().__init__(*args,
+                         monitor=kwargs["monitor"] or None,
+                         shared=kwargs["shared"] or None,
+                         callbacks=kwargs["callbacks"] or None,
+                         hints=kwargs["hints"] or None)
         self.set_key_callback(ManagedWindow.key_callback)
         self.set_char_callback(ManagedWindow.char_callback)
         self.set_scroll_callback(ManagedWindow.scroll_callback)
@@ -761,6 +764,9 @@ class ManagedWindow(Window):
     def events(self):
         while not self._events.empty():
             event = self._events.get()
+            if self.escape_key and isinstance(event, KeyEvent):
+                if event.key == self.escape_key:
+                    self.quit()
             yield event
 
     def _clear_events(self):
@@ -848,4 +854,3 @@ class FrameLimiter:
             while api.glfwGetTime() < self.frame_current_time + self.frame_step:
                 pass
         return dt
-

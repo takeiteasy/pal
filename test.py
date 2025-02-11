@@ -3,6 +3,10 @@ from typing import override
 
 @pwp.main
 class TestScene(pwp.Scene):
+    window_attrs = {'width': 320,
+                    'height': 220,
+                    'escape_key': pwp.Keys.ESCAPE}
+
     @override
     def enter(self):
         y = pwp.DefaultShader()
