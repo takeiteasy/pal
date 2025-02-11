@@ -5,16 +5,18 @@ from .parent import ParentNode
 from ..window import Window, Monitor, Keys, KeyEvent
 from ..core import get_window
 from ..core import initialize as pwp_initialize
+from .fsm import FiniteStateMachine
 
 __scene__ = []
 __next_scene = None
 __drop_scene = None
 
-class Scene(ParentNode):
+class Scene(FiniteStateMachine, ParentNode):
     window_attrs: dict = {}
 
-    def __init__(self, window: Window = None):
+    def __init__(self, window: Window = None, **kwargs):
         ParentNode.__init__(self)
+        FiniteStateMachine.__init__(self, **kwargs)
         self._wnd = window if window else get_window()
         if not self._wnd:
             raise RuntimeError("No window context for Scene")

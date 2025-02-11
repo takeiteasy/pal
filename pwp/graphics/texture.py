@@ -228,7 +228,7 @@ class Texture(DescriptorMixin, BindableObject, ManagedObject):
         except KeyError as e:
             raise ValueError(e.message)
 
-class TextureRef(Texture, UnmanagedObject):
+class UnmanagedTexture(Texture, UnmanagedObject):
     pass
 
 class BasicTexture(Texture):

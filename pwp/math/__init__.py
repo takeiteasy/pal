@@ -8,6 +8,8 @@ from .matrix44 import *
 from .vector2 import *
 from .vector3 import *
 from .vector4 import *
+from .geometry import *
+from .quaternion import *
 
 
 # because of circular imports, we cannot put these inside each module

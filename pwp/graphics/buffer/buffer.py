@@ -130,7 +130,7 @@ class Buffer(BindableObject, ManagedObject):
     def names(self):
         return np.dtype(self._dtype).names
 
-class BufferRef(Buffer, UnmanagedObject):
+class UnmanagedBuffer(Buffer, UnmanagedObject):
     pass
 
 class MappedBuffer(np.ndarray):

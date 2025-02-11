@@ -53,11 +53,13 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
     link_status = ProgramProxy(GL.GL_LINK_STATUS, dtype=np.bool)
     delete_status = ProgramProxy(GL.GL_DELETE_STATUS, dtype=np.bool)
 
-    def __init__(self, shaders: list[ShaderSource]):
+    def __init__(self, shaders: list[ShaderSource], frag_locations: str | dict[str, int] | list[str] = None):
         super(Program, self).__init__()
         self._uniforms = {}
         self._attributes = {}
         self._loaded = False
+
+        attrs = None
         for i, shader in enumerate(shaders):
             if isinstance(shader, Stage):
                 if isinstance(shader, VertexStage):
@@ -66,15 +68,47 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
                     shader = FragmentShader(shader)
                 else:
                     assert False
-            elif isinstance(shader, Shader):
-                if isinstance(shader, WrappedShader):
-                    self._attributes |= shader.attributes
+            if isinstance(shader, Shader):
+                if isinstance(shader, VertexShader):
+                    self._attributes = shader.attributes
                     self._uniforms |= shader.uniforms
+                elif isinstance(shader, FragmentShader):
+                    self._uniforms |= shader.uniforms
+                else:
+                    assert False
             else:
                 raise ValueError("Invalid Shader type")
             self._attach(shader)
             shaders[i] = shader
+
+        if frag_locations:
+            if isinstance(frag_locations, str):
+                frag_locations = {frag_locations: 0}
+            if isinstance(frag_locations, list):
+                frag_locations = { k: i for i, k in enumerate(frag_locations) }
+            for name, number in frag_locations:
+                self._set_frag_location(name, number)
         self._link()
+
+        if self._attributes:
+            store = VariableStore()
+            for i, (name, _) in enumerate(self._attributes.items()):
+                attr = Attribute(self, i, self.active_attribute_max_length)
+                store[name] = attr
+                self.__dict__[attr.name] = attr
+                GL.glBindAttribLocation(self._handle, i, name)
+            self.__dict__['_attributes'] = store
+
+        if self._uniforms:
+            store = VariableStore()
+            for i, (name, type) in enumerate(self._uniforms.items()):
+                uniform = Uniform(self,
+                                  i,
+                                  self.active_uniform_max_length)
+                store[name] = uniform
+                self.__dict__[uniform.name] = uniform
+            self.__dict__['_uniforms'] = store
+
         for shader in shaders:
             self._detach(shader)
         self._loaded = True
@@ -91,25 +125,16 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
         # noinspection PyBroadException
         try:
             if self._loaded:
-                if not self._uniforms or not self._attributes:
-                    self._load_variables()
                 stores = [self.__dict__['_uniforms'], self.__dict__['_attributes']]
                 for store in stores:
                     if name in store:
-                        return store[name].__get__(store, store.__class__)
-        except:
+                        return store[name.encode("utf-8")].__get__(store, store.__class__)
+        except Exception as e:
+            print(str(e))
             pass
         raise AttributeError
 
     def __setattr__(self, name, value):
-        # noinspection PyBroadException
-        try:
-            if self._loaded:
-                if name not in self.__dict__:
-                    if not self._uniforms or not self._attributes:
-                        self._load_variables()
-        except:
-            pass
         return super(Program, self).__setattr__(name, value)
 
     def _attach(self, shader):
@@ -134,7 +159,10 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
     def log(self):
         return GL.glGetProgramInfoLog(self._handle)
 
-class ProgramRef(Program, UnmanagedObject):
+    def _set_frag_location(self, name, number):
+        GL.glBindFragDataLocation(self._handle, number, name)
+
+class UnmanagedProgram(Program, UnmanagedObject):
     pass
 
 class StaticProgram:
@@ -148,12 +176,12 @@ class StaticProgram:
     @classmethod
     def __init__(cls):
         if not cls.id:
-            p = ProgramRef([VertexStage(cls.vertex_source,
-                                        version=cls.version,
-                                        library=cls.vertex_functions),
-                            FragmentStage(cls.fragment_source,
-                                          version=cls.version,
-                                          library=cls.fragment_functions)])
+            p = UnmanagedProgram([VertexStage(cls.vertex_source,
+                                              version=cls.version,
+                                              library=cls.vertex_functions),
+                                  FragmentStage(cls.fragment_source,
+                                                version=cls.version,
+                                                library=cls.fragment_functions)])
             cls.id = p.handle
 
     @classmethod

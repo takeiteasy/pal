@@ -450,3 +450,6 @@ def groupMemoryBarrier(*args, **kwargs):
 
 def groupMemoryBarrierShared(*args, **kwargs):
     pass
+
+def texelFetch(*args, **kwargs):
+    pass

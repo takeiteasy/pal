@@ -57,7 +57,7 @@ class VertexArray(BindableObject, ManagedObject):
         start = start or 0
         count = count or (self._count - start)
         with self:
-            GL.glDrawArrays(primitive, start, count)
+            GL.glDrawArrays(primitive, start, int(count))
 
     def render_indices(self, indices, primitive=GL.GL_TRIANGLES, start=None, count=None):
         if not isinstance(indices, IndexBuffer):
@@ -66,5 +66,5 @@ class VertexArray(BindableObject, ManagedObject):
         with self:
             indices.render(primitive, start, count)
 
-class VertexArrayRef(VertexArray, UnmanagedObject):
+class UnmanagedVertexArray(VertexArray, UnmanagedObject):
     pass

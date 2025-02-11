@@ -40,9 +40,12 @@ class FiniteStateMachine:
     transitions: list[dict | Transition] = []
 
     def __init__(self, **kwargs):
-        if not "initial" in kwargs:
-            kwargs["initial"] = self.__class__.states[0]
-        self.machine = transitions.Machine(model=self,
+        if self.__class__.states:
+            if not "initial" in kwargs:
+                kwargs["initial"] = self.__class__.states[0]
+            self.fsm = transitions.Machine(model=self,
                                            states=self.__class__.states,
                                            transitions=[t.explode() if isinstance(t, Transition) else t for t in self.__class__.transitions],
                                            **kwargs)
+        else:
+            self.fsm = None
