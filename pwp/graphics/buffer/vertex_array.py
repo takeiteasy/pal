@@ -47,10 +47,12 @@ class VertexArray(BindableObject, ManagedObject):
         return len(self._pointers.keys())
 
     def _update_count(self):
-        self._count = min(map(lambda x: x.size, self._pointers.values()))
+        v = self._pointers.values()
+        self._count = 0 if not v else min(map(lambda x: x.size, v))
 
     def clear(self):
-        for location in self._pointers.keys():
+        while self._pointers:  # Continue until the dictionary is empty
+            location = next(iter(self._pointers))  # Get the first key
             del self[location]
 
     def render(self, primitive=GL.GL_TRIANGLES, start=None, count=None):

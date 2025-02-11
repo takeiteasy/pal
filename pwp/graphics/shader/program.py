@@ -130,7 +130,6 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
                     if name in store:
                         return store[name.encode("utf-8")].__get__(store, store.__class__)
         except Exception as e:
-            print(str(e))
             pass
         raise AttributeError
 

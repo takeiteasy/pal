@@ -2,6 +2,7 @@ import pwp
 import numpy as np
 from OpenGL import GL
 from pwp.math import *
+from pwp.graphics.draw import DrawCall
 
 def test_shader():
     from pwp.graphics.shader.glsl import (AttributeBlock, UniformBlock,
@@ -47,8 +48,10 @@ class TestScene(pwp.Scene):
         flat_data = data[indices]
         shaped_data = flat_data.view(dtype=[('position', np.float32, 3,),('texcoord', np.float32, 2,),])
         self.vb = pwp.VertexBuffer(shaped_data)
-        self.pipeline = pwp.Pipeline(self.program)
-        self.mesh = pwp.Mesh(self.pipeline, **self.vb.pointers)
+        self.call = DrawCall(self.program, **self.vb.pointers)
+        self.call._build()
+        # self.pipeline = pwp.Pipeline(self.program)
+        # self.mesh = pwp.Mesh(self.pipeline, **self.vb.pointers)
         dtype = np.float32
         data = np.random.random_sample((512,512,4))
         data = data.astype(np.float32)
@@ -68,11 +71,9 @@ class TestScene(pwp.Scene):
     def draw(self):
         aspect = float(self.width) / float(self.height)
         projection = Matrix44.perspective_projection(90., aspect, 1., 100., np.float32)
-        model_view = Matrix44.from_translation([0.,0.,-8.], np.float32)
+        model_view = Matrix44.from_translation([0.,0.,-1.], np.float32)
         GL.glClearColor(0.2, 0.2, 0.2, 1.0)
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glDisable(GL.GL_CULL_FACE)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        rotation = Matrix44.from_y_rotation(math.pi * self.delta, np.float32)
-        model_view = model_view * rotation
-        self.mesh.render(projection=projection, modelview=model_view)
+        self.call.draw(projection=projection, modelview=model_view)
