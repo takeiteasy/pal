@@ -6,6 +6,7 @@ from ..window import Window, Monitor, Keys, KeyEvent
 from ..core import get_window
 from ..core import initialize as pwp_initialize
 from .fsm import FiniteStateMachine
+from ..graphics import DrawCall
 
 __scene__ = []
 __next_scene = None
@@ -25,6 +26,7 @@ class Scene(FiniteStateMachine, ParentNode):
         self._width, self._height = self._wnd.size
         self.projection = Matrix44.identity()
         self.view = Matrix44.identity()
+        self._draw_calls = []
 
     @contextmanager
     def with_projection(self, matrix: Matrix44):
@@ -52,11 +54,14 @@ class Scene(FiniteStateMachine, ParentNode):
 
     @property
     def width(self):
-        return self._width
+        return self._wnd.size[0]
 
     @property
     def height(self):
-        return self._height
+        return self._wnd.size[1]
+    
+    def add_draw_call(self, call: DrawCall, **kwargs):
+        self._draw_calls.append((call, kwargs))
 
     def add_child(self, node: NodeType):
         node.scene = self
@@ -81,6 +86,9 @@ class Scene(FiniteStateMachine, ParentNode):
         pass
 
     def draw(self):
+        for draw, kwargs in self._draw_calls:
+            draw.draw(**kwargs)
+        self._draw_calls = []
         for child in self.children:
             child.draw()
 

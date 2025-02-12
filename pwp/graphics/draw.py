@@ -1,5 +1,6 @@
 from OpenGL import GL
 import numpy as np
+from queue import Queue
 from .object import DescriptorMixin
 from .shader import Program, StaticProgram
 from .texture import Texture
@@ -89,4 +90,3 @@ class DrawCall(DescriptorMixin):
                     if unit is not None:
                         Texture.active_unit = unit
                         value.unbind()
-

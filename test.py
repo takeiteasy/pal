@@ -2,7 +2,6 @@ import pwp
 import numpy as np
 from OpenGL import GL
 from pwp.math import *
-from pwp.graphics.draw import DrawCall
 
 def test_shader():
     from pwp.graphics.shader.glsl import (AttributeBlock, UniformBlock,
@@ -48,7 +47,7 @@ class TestScene(pwp.Scene):
         flat_data = data[indices]
         # shaped_data = flat_data.view(dtype=[('position', np.float32, 3,),('texcoord', np.float32, 2,),])
         # self.vb = pwp.VertexBuffer(shaped_data)
-        self.call = DrawCall(self.program, initial_data=flat_data)
+        self.call = pwp.DrawCall(self.program, initial_data=flat_data)
         self.call._build()
         # self.pipeline = pwp.Pipeline(self.program)
         # self.mesh = pwp.Mesh(self.pipeline, **self.vb.pointers)
@@ -60,20 +59,25 @@ class TestScene(pwp.Scene):
         self.bt = self.tb.texture
         self.bt.active_unit = self.program.in_buffer
         self.bt.bind()
-        self.delta = None
+        self.angle = 0.0
 
     def event(self, e):
         print(e)
 
     def step(self, delta):
-        self.delta = delta
-
-    def draw(self):
         aspect = float(self.width) / float(self.height)
         projection = Matrix44.perspective_projection(90., aspect, 1., 100., np.float32)
-        model_view = Matrix44.from_translation([0.,0.,-1.], np.float32)
+        model_view = Matrix44.from_translation([0.,0.,-10.], np.float32)
+        self.angle += delta
+        if self.angle > 2 * np.pi:
+            self.angle -= 2 * np.pi
+        rotation = Matrix44.from_y_rotation(self.angle, np.float32)
+        model_view = model_view * rotation
+        self.add_draw_call(self.call, projection=projection, modelview=model_view)
+
+    def draw(self):
         GL.glClearColor(0.2, 0.2, 0.2, 1.0)
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glDisable(GL.GL_CULL_FACE)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        self.call.draw(projection=projection, modelview=model_view)
+        super().draw()
