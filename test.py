@@ -1,14 +1,14 @@
-import pwp
+import pal
 import numpy as np
 from OpenGL import GL
-from pwp.math import *
+from pal.math import *
 
 def test_shader():
-    from pwp.graphics.shader.glsl import (AttributeBlock, UniformBlock,
+    from pal.graphics.shader.glsl import (AttributeBlock, UniformBlock,
                                           ShaderInterface, FragmentShaderOutputBlock,
                                           samplerBuffer, texelFetch, vec2,
                                           vec3, vec4, mat4)
-    from pwp.graphics.shader import VertexStage, FragmentStage
+    from pal.graphics.shader import VertexStage, FragmentStage
 
     class VsAttrs(AttributeBlock):
         position = vec3()
@@ -37,41 +37,36 @@ def test_shader():
 
     return VertexStage(vertex), FragmentStage(fragment)
 
-@pwp.main
-class TestScene(pwp.Scene):
-    window_attrs = {'escape_key': pwp.Keys.ESCAPE}
-
-    def enter(self):
-        self.program = pwp.Program(list(test_shader()))
-        data, indices = pwp.create_cube((5.,5.,5.,), st=True, dtype=np.float32)
-        flat_data = data[indices]
-        self.call = pwp.DrawCall(self.program, initial_data=flat_data)
-        self.call._build()
-        data = np.random.random_sample((512,512,4))
-        data = data.astype(np.float32)
-        self.tb = pwp.TextureBuffer(data)
-        self.bt = self.tb.texture
-        self.bt.active_unit = self.program.in_buffer
-        self.bt.bind()
-        self.angle = 0.0
-
-    def event(self, e):
-        print(e)
-
-    def step(self, delta):
-        aspect = float(self.width) / float(self.height)
+with pal.quick_window(640, 480, "test") as window:
+    program = pal.Program(list(test_shader()))
+    data, indices = pal.create_cube((5.,5.,5.,), st=True, dtype=np.float32)
+    flat_data = data[indices]
+    call = pal.DrawCall(program, initial_data=flat_data)
+    call._build()
+    data = np.random.random_sample((512,512,4))
+    data = data.astype(np.float32)
+    tb = pal.TextureBuffer(data)
+    bt = tb.texture
+    bt.active_unit = program.in_buffer
+    bt.bind()
+    angle = 0.0
+    
+    for dt in window.loop():
+        for e in window.events():
+            print(e)
+    
+        width, height = window.size
+        aspect = float(width) / float(height)
         projection = Matrix44.perspective_projection(90., aspect, 1., 100., np.float32)
         model_view = Matrix44.from_translation([0.,0.,-10.], np.float32)
-        self.angle += delta
-        if self.angle > 2 * np.pi:
-            self.angle -= 2 * np.pi
-        rotation = Matrix44.from_y_rotation(self.angle, np.float32)
+        angle += dt
+        if angle > 2 * np.pi:
+            angle -= 2 * np.pi
+        rotation = Matrix44.from_y_rotation(angle, np.float32)
         model_view = model_view * rotation
-        self.add_draw_call(self.call, projection=projection, modelview=model_view)
-
-    def draw(self):
+    
         GL.glClearColor(0.2, 0.2, 0.2, 1.0)
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glDisable(GL.GL_CULL_FACE)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        super().draw()
+        call.draw(projection=projection, modelview=model_view)

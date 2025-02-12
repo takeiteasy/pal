@@ -1,22 +1,7 @@
-# Play With Python
+# Python Abstraction Layer
 
 > [!WARNING]
 > Work in progess, working title
-
-```python
-import pwp
-
-@pwp.main
-class TestScene(pwp.Scene):
-    def enter(self):
-        pass
-
-    def event(self, e):
-        print(e)
-
-    def step(self, delta):
-        pass
-```
 
 ## Acknowledgements
 
@@ -44,7 +29,7 @@ pyaudiolib==0.0.1
 
 ## LICENSE
 ```
-Play With Python
+Python Abstraction Layer
 
 Copyright (C) 2025 George Watson
 
