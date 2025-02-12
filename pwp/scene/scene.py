@@ -30,24 +30,24 @@ class Scene(FiniteStateMachine, ParentNode):
     def with_projection(self, matrix: Matrix44):
         tmp = self.projection
         self.projection = matrix
-        yield
+        yield self.projection
         self.projection = tmp
 
     @contextmanager
     def projection2d(self):
         with self.with_projection(Matrix44.orthogonal_projection(0, self._width, 0, self._height, -1.0, 1.0)):
-            yield
+            yield self.projection
 
     @contextmanager
     def projection3d(self, fov: float = 45.0, near: float = 0.1, far: float = 1000.0):
         with self.with_projection(Matrix44.perspective_projection(fov, float(self._width) / float(self._height), near, far)):
-            yield
+            yield self.with_view
 
     @contextmanager
     def with_view(self, matrix: Matrix44):
         tmp = self.view
         self.view = matrix
-        yield
+        yield self.view
         self.view = tmp
 
     @property

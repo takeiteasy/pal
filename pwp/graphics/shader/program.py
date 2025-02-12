@@ -59,7 +59,6 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
         self._attributes = {}
         self._loaded = False
 
-        attrs = None
         for i, shader in enumerate(shaders):
             if isinstance(shader, Stage):
                 if isinstance(shader, VertexStage):
@@ -92,11 +91,11 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
 
         if self._attributes:
             store = VariableStore()
-            for i, (name, _) in enumerate(self._attributes.items()):
+            for i, _ in enumerate(self._attributes.items()):
                 attr = Attribute(self, i, self.active_attribute_max_length)
-                store[name] = attr
+                store[attr.name] = attr
                 self.__dict__[attr.name] = attr
-                GL.glBindAttribLocation(self._handle, i, name)
+                GL.glBindAttribLocation(self._handle, i, attr.name)
             self.__dict__['_attributes'] = store
 
         if self._uniforms:
@@ -149,6 +148,20 @@ class Program(DescriptorMixin, BindableObject, ManagedObject):
         # linking sets the program as active
         # ensure we unbind the program
         self.unbind()
+    
+    def format(self, data: np.ndarray):
+        def convert_dtype(dt):
+            if dt == np.dtype('float32'):
+                return np.float32
+            elif dt == np.dtype('int32'):
+                return np.int32
+            elif dt == np.dtype('uint32'):
+                return np.uint32
+            elif dt == np.dtype('float64'):
+                return np.float64
+            return dt
+        # Sort by OpenGL attribute locations
+        return data.view(dtype=sorted([(k, convert_dtype(v.dtype), v.dimensions[0]) for k, v in self._attributes.items()], key=lambda x: getattr(self, x[0])))
 
     @property
     def valid(self):
