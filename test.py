@@ -45,17 +45,11 @@ class TestScene(pwp.Scene):
         self.program = pwp.Program(list(test_shader()))
         data, indices = pwp.create_cube((5.,5.,5.,), st=True, dtype=np.float32)
         flat_data = data[indices]
-        # shaped_data = flat_data.view(dtype=[('position', np.float32, 3,),('texcoord', np.float32, 2,),])
-        # self.vb = pwp.VertexBuffer(shaped_data)
         self.call = pwp.DrawCall(self.program, initial_data=flat_data)
         self.call._build()
-        # self.pipeline = pwp.Pipeline(self.program)
-        # self.mesh = pwp.Mesh(self.pipeline, **self.vb.pointers)
-        dtype = np.float32
         data = np.random.random_sample((512,512,4))
         data = data.astype(np.float32)
         self.tb = pwp.TextureBuffer(data)
-        #bt = BufferTexture(tb)
         self.bt = self.tb.texture
         self.bt.active_unit = self.program.in_buffer
         self.bt.bind()
